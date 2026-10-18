@@ -142,6 +142,8 @@
 
 调试：修改代码后在 edge://extensions/ 点击扩展卡片上的「重新加载」；页面需刷新后旧内容脚本才会更新。
 
+持续集成：GitHub Actions 配置示例见 [docs/ci-example.yml](docs/ci-example.yml)，复制到 .github/workflows/tests.yml 即可启用（推送该文件需要带 workflow 权限的 token）。
+
 ## 已知限制
 
 - 只翻译普通 DOM 页面：PDF、图片文字、视频字幕、Shadow DOM 内部文字暂不支持。
