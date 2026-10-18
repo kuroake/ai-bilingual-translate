@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>设置 · AI 双语翻译</title>
+  <link rel="icon" href="../assets/icon32.png">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img class="brand-logo" src="../assets/logo.svg" alt="" width="30" height="30">
+        <div class="brand-text">
+          <span class="brand-name">AI 双语翻译</span>
+          <span class="brand-sub">设置</span>
+        </div>
+      </div>
+      <nav class="nav" id="nav" aria-label="设置分类"></nav>
+      <div class="sidebar-foot">
+        <span class="version" id="version">v1.0.0</span>
+        <span class="demo-tag" id="demo-tag" hidden>演示数据</span>
+      </div>
+    </aside>
+
+    <div class="main">
+      <p class="demo-banner" id="demo-banner" hidden>演示模式 · 示例数据 · chrome.* 已由内存 mock 接管</p>
+
+      <header class="topbar">
+        <div class="topbar-text">
+          <h1 class="page-heading" id="page-heading">连接与模型</h1>
+          <p class="page-desc" id="page-desc">配置 OpenAI 兼容接口，测试连通性并选择模型。</p>
+        </div>
+        <div class="save-state" id="save-state" role="status" aria-live="polite">已保存</div>
+      </header>
+
+      <main class="sections" id="sections">
+        <!-- ---------- 连接与模型 ---------- -->
+        <section class="section" id="section-api" aria-labelledby="heading-api">
+          <div class="card">
+            <h2 class="card-title" id="heading-api">服务预设</h2>
+            <p class="card-desc">一键填入常见服务的地址与模型，填入后仍可手动修改。</p>
+            <div class="preset-row" id="preset-row"></div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">连接配置</h2>
+            <div class="form-grid">
+              <div class="field field--full">
+                <label class="label" for="base-url">Base URL</label>
+                <input class="input" id="base-url" type="url" spellcheck="false" autocomplete="off"
+                  data-setting="provider.baseUrl" placeholder="https://api.deepseek.com/v1">
+                <p class="help" id="endpoint-preview">—</p>
+              </div>
+
+              <div class="field field--full">
+                <label class="label" for="api-key">API Key</label>
+                <div class="input-row">
+                  <input class="input" id="api-key" type="password" spellcheck="false" autocomplete="off"
+                    data-setting="provider.apiKey" placeholder="sk-…">
+                  <button class="btn btn-secondary btn-square" type="button" id="toggle-key"
+                    aria-pressed="false" aria-label="显示 API Key" title="显示 / 隐藏">
+                    <span id="toggle-key-icon" aria-hidden="true"></span>
+                  </button>
+                </div>
+                <p class="help">Key 只保存在本地，只由扩展后台进程使用，页面脚本无法读取。</p>
+              </div>
+
+              <div class="field field--full">
+                <label class="label" for="model">模型</label>
+                <div class="input-row">
+                  <input class="input" id="model" type="text" spellcheck="false" autocomplete="off"
+                    data-setting="provider.model" placeholder="deepseek-chat">
+                  <button class="btn btn-secondary" type="button" id="fetch-models">
+                    <span class="btn-spinner" aria-hidden="true" hidden></span>
+                    <span id="fetch-models-label">拉取模型</span>
+                  </button>
+                </div>
+                <div class="model-list" id="model-list" hidden></div>
+              </div>
+            </div>
+
+            <details class="advanced">
+              <summary>高级参数</summary>
+              <div class="form-grid three">
+                <div class="field">
+                  <label class="label" for="temperature">温度</label>
+                  <input class="input" id="temperature" type="number" min="0" max="2" step="0.1"
+                    data-setting="provider.temperature">
+                  <p class="help">0–2，翻译建议 0.2。</p>
+                </div>
+                <div class="field">
+                  <label class="label" for="max-tokens">最大 Token</label>
+                  <input class="input" id="max-tokens" type="number" min="0" max="32000" step="100"
+                    data-setting="provider.maxTokens">
+                  <p class="help">0 表示不限制。</p>
+                </div>
+                <div class="field">
+                  <label class="label" for="timeout">超时（毫秒）</label>
+                  <input class="input" id="timeout" type="number" min="5000" max="300000" step="1000"
+                    data-setting="provider.timeoutMs">
+                  <p class="help">默认 60000。</p>
+                </div>
+              </div>
+            </details>
+
+            <div class="action-row">
+              <button class="btn btn-primary" type="button" id="test-connection">
+                <span class="btn-spinner" aria-hidden="true" hidden></span>
+                <span id="test-connection-label">测试连接</span>
+              </button>
+              <p class="help">会发送一条极短的测试请求，可能产生极少的 Token 费用。</p>
+            </div>
+            <div class="inline-result" id="test-result" hidden></div>
+          </div>
+        </section>
+
+        <!-- ---------- 语言与翻译 ---------- -->
+        <section class="section" id="section-language" aria-labelledby="heading-language" hidden>
+          <div class="card">
+            <h2 class="card-title" id="heading-language">语言</h2>
+            <div class="form-grid two">
+              <div class="field">
+                <label class="label" for="source-lang">源语言</label>
+                <span class="select-shell">
+                  <select class="select" id="source-lang" data-setting="language.source"></select>
+                  <svg class="select-chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+                </span>
+                <p class="help">一般保持「自动检测」。</p>
+              </div>
+              <div class="field">
+                <label class="label" for="target-lang">目标语言</label>
+                <span class="select-shell">
+                  <select class="select" id="target-lang" data-setting="language.target"></select>
+                  <svg class="select-chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+                </span>
+                <p class="help">全页翻译与快速翻译默认使用该语言。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">显示方式</h2>
+            <div class="radio-cards" role="radiogroup" aria-label="翻译显示方式">
+              <label class="radio-card">
+                <input type="radio" name="display-mode" value="bilingual" data-setting="translate.mode">
+                <span class="radio-mark" aria-hidden="true"></span>
+                <span class="radio-text">
+                  <strong>双语对照</strong>
+                  <small>译文作为批注插入原文下方，原文保留。</small>
+                </span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="display-mode" value="translation-only" data-setting="translate.mode">
+                <span class="radio-mark" aria-hidden="true"></span>
+                <span class="radio-text">
+                  <strong>仅译文</strong>
+                  <small>隐藏原文，只显示译文，适合作品阅读。</small>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">翻译行为</h2>
+            <div class="form-grid three">
+              <div class="field">
+                <label class="label" for="concurrency">并发请求数</label>
+                <input class="input" id="concurrency" type="number" min="1" max="6" step="1"
+                  data-setting="translate.concurrency">
+                <p class="help">1–6，默认 3。</p>
+              </div>
+              <div class="field">
+                <label class="label" for="batch-size">每批段落数</label>
+                <input class="input" id="batch-size" type="number" min="1" max="20" step="1"
+                  data-setting="translate.batchSize">
+                <p class="help">1–20，默认 8。</p>
+              </div>
+              <div class="field">
+                <label class="label" for="retry-limit">失败重试次数</label>
+                <input class="input" id="retry-limit" type="number" min="0" max="5" step="1"
+                  data-setting="translate.retryLimit">
+                <p class="help">指数退避重试。</p>
+              </div>
+              <div class="field">
+                <label class="label" for="min-text-length">最短段落字数</label>
+                <input class="input" id="min-text-length" type="number" min="1" max="20" step="1"
+                  data-setting="translate.minTextLength">
+                <p class="help">过短文本不翻译。</p>
+              </div>
+              <div class="field">
+                <label class="label" for="max-segment-chars">单段最大字符</label>
+                <input class="input" id="max-segment-chars" type="number" min="200" max="5000" step="100"
+                  data-setting="translate.maxSegmentChars">
+                <p class="help">超长段落会被跳过。</p>
+              </div>
+            </div>
+            <div class="switch-list">
+              <label class="switch-row">
+                <span class="switch-text"><strong>跳过代码块</strong><small>code / pre / kbd / samp 不参与翻译。</small></span>
+                <input class="switch" type="checkbox" data-setting="translate.skipCode">
+              </label>
+              <label class="switch-row">
+                <span class="switch-text"><strong>默认保留原文</strong><small>关闭后首次翻译即按「仅译文」显示。</small></span>
+                <input class="switch" type="checkbox" data-setting="translate.showOriginalDefault">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">自定义提示词</h2>
+            <p class="card-desc">留空即使用内置翻译引擎提示词。术语表会始终追加在提示词之后。</p>
+            <div class="field">
+              <label class="label" for="prompt-system">系统提示词</label>
+              <textarea class="textarea" id="prompt-system" rows="3" data-setting="customPrompt.system"
+                placeholder="留空使用内置提示词"></textarea>
+            </div>
+            <div class="field">
+              <label class="label" for="prompt-page">全页翻译附加要求</label>
+              <textarea class="textarea" id="prompt-page" rows="2" data-setting="customPrompt.page"
+                placeholder="例如：技术术语保留英文，语气正式"></textarea>
+            </div>
+            <div class="field">
+              <label class="label" for="prompt-selection">划词翻译附加要求</label>
+              <textarea class="textarea" id="prompt-selection" rows="2" data-setting="customPrompt.selection"
+                placeholder="例如：口语化，简洁"></textarea>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">界面主题</h2>
+            <div class="form-grid two">
+              <div class="field">
+                <label class="label" for="theme">主题</label>
+                <span class="select-shell">
+                  <select class="select" id="theme" data-setting="ui.theme">
+                    <option value="auto">跟随系统</option>
+                    <option value="light">亮色</option>
+                    <option value="dark">暗色</option>
+                  </select>
+                  <svg class="select-chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- 划词翻译 ---------- -->
+        <section class="section" id="section-selection" aria-labelledby="heading-selection" hidden>
+          <div class="card">
+            <h2 class="card-title" id="heading-selection">划词翻译</h2>
+            <div class="switch-list">
+              <label class="switch-row">
+                <span class="switch-text"><strong>启用划词翻译</strong><small>选中文字后显示圆形「译」按钮。</small></span>
+                <input class="switch" type="checkbox" data-setting="selection.enabled">
+              </label>
+              <label class="switch-row">
+                <span class="switch-text"><strong>选中即弹出卡片</strong><small>不显示按钮，选中文字后直接打开翻译卡片。</small></span>
+                <input class="switch" type="checkbox" data-setting="selection.autoPopup">
+              </label>
+              <label class="switch-row">
+                <span class="switch-text"><strong>流式输出</strong><small>译文逐字出现，可随时中断。</small></span>
+                <input class="switch" type="checkbox" data-setting="selection.stream">
+              </label>
+              <label class="switch-row">
+                <span class="switch-text"><strong>卡片显示原文</strong><small>在译文上方保留可折叠的原文。</small></span>
+                <input class="switch" type="checkbox" data-setting="selection.showOriginal">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">范围</h2>
+            <div class="form-grid two">
+              <div class="field">
+                <label class="label" for="selection-lang">划词目标语言</label>
+                <span class="select-shell">
+                  <select class="select" id="selection-lang" data-setting="selection.targetLang">
+                    <option value="">跟随全局设置</option>
+                  </select>
+                  <svg class="select-chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+                </span>
+                <p class="help">留空则使用「语言与翻译」中的目标语言。</p>
+              </div>
+              <div class="field">
+                <label class="label" for="selection-max">单次最长字符</label>
+                <input class="input" id="selection-max" type="number" min="100" max="20000" step="100"
+                  data-setting="selection.maxChars">
+                <p class="help">超过长度的选区不显示翻译按钮。</p>
+              </div>
+            </div>
+            <p class="help">快捷键 <kbd>Alt</kbd> + <kbd>S</kbd> 可翻译当前选中文字。</p>
+          </div>
+        </section>
+
+        <!-- ---------- 术语表 ---------- -->
+        <section class="section" id="section-glossary" aria-labelledby="heading-glossary" hidden>
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2 class="card-title" id="heading-glossary">术语表</h2>
+                <p class="card-desc">指定术语的固定译法，优先级高于模型判断与自定义提示词。</p>
+              </div>
+              <button class="btn btn-secondary" type="button" id="add-term">添加术语</button>
+            </div>
+            <div class="glossary-list" id="glossary-list"></div>
+            <p class="help">原文术语按整词匹配；备注只用于自己备忘，不会发送给模型。</p>
+          </div>
+        </section>
+
+        <!-- ---------- 站点规则 ---------- -->
+        <section class="section" id="section-sites" aria-labelledby="heading-sites" hidden>
+          <div class="card">
+            <h2 class="card-title" id="heading-sites">自动翻译</h2>
+            <div class="switch-list">
+              <label class="switch-row">
+                <span class="switch-text"><strong>全局自动翻译</strong><small>打开任意网页后自动翻译。站点规则优先于该开关。</small></span>
+                <input class="switch" type="checkbox" data-setting="translate.autoTranslate">
+              </label>
+            </div>
+            <p class="help">优先级：排除站点 &gt; 自动翻译站点 &gt; 全局自动翻译。</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">站点列表</h2>
+            <div class="form-grid two">
+              <div class="field">
+                <label class="label" for="auto-site-input">自动翻译的站点</label>
+                <div class="chip-box">
+                  <div class="chips" id="auto-sites"></div>
+                  <div class="chip-entry">
+                    <input class="input" id="auto-site-input" type="text" spellcheck="false" placeholder="example.com 或 *.example.com">
+                    <button class="btn btn-secondary btn-sm" type="button" data-chip-add="autoSites">添加</button>
+                  </div>
+                </div>
+                <p class="help">支持 example.com、*.example.com、localhost。</p>
+              </div>
+              <div class="field">
+                <label class="label" for="exclude-site-input">永不翻译的站点</label>
+                <div class="chip-box">
+                  <div class="chips" id="exclude-sites"></div>
+                  <div class="chip-entry">
+                    <input class="input" id="exclude-site-input" type="text" spellcheck="false" placeholder="mail.google.com">
+                    <button class="btn btn-secondary btn-sm" type="button" data-chip-add="excludeSites">添加</button>
+                  </div>
+                </div>
+                <p class="help">命中排除规则的站点即使全局自动翻译开启也不会翻译。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- 缓存与统计 ---------- -->
+        <section class="section" id="section-cache" aria-labelledby="heading-cache" hidden>
+          <div class="card">
+            <h2 class="card-title" id="heading-cache">翻译缓存</h2>
+            <div class="switch-list">
+              <label class="switch-row">
+                <span class="switch-text"><strong>启用本地缓存</strong><small>相同原文直接取缓存译文，节省 Token 与等待时间。</small></span>
+                <input class="switch" type="checkbox" data-setting="cache.enabled">
+              </label>
+            </div>
+            <div class="form-grid two">
+              <div class="field">
+                <label class="label" for="cache-max">最大条目数</label>
+                <input class="input" id="cache-max" type="number" min="100" max="20000" step="100"
+                  data-setting="cache.maxEntries">
+                <p class="help">超出后按最近使用淘汰。</p>
+              </div>
+              <div class="field">
+                <label class="label" for="cache-ttl">过期天数</label>
+                <input class="input" id="cache-ttl" type="number" min="1" max="365" step="1"
+                  data-setting="cache.ttlDays">
+                <p class="help">过期条目在读取时惰性清理。</p>
+              </div>
+            </div>
+            <div class="metric-grid">
+              <div class="metric"><span class="metric-label">已缓存条目</span><strong class="metric-value" id="cache-entries">—</strong></div>
+              <div class="metric"><span class="metric-label">占用空间</span><strong class="metric-value" id="cache-bytes">—</strong></div>
+              <div class="metric"><span class="metric-label">条目上限</span><strong class="metric-value" id="cache-limit">—</strong></div>
+            </div>
+            <div class="action-row">
+              <button class="btn btn-secondary" type="button" id="clear-cache">清空缓存</button>
+              <p class="help">清空后下次翻译需要重新请求模型。</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">用量统计</h2>
+            <div class="metric-grid">
+              <div class="metric"><span class="metric-label">请求次数</span><strong class="metric-value" id="stat-requests">—</strong></div>
+              <div class="metric"><span class="metric-label">翻译段落</span><strong class="metric-value" id="stat-segments">—</strong></div>
+              <div class="metric"><span class="metric-label">缓存命中</span><strong class="metric-value" id="stat-hits">—</strong></div>
+              <div class="metric"><span class="metric-label">Token 输入</span><strong class="metric-value" id="stat-tokens-in">—</strong></div>
+              <div class="metric"><span class="metric-label">Token 输出</span><strong class="metric-value" id="stat-tokens-out">—</strong></div>
+              <div class="metric"><span class="metric-label">开始统计</span><strong class="metric-value metric-value--date" id="stat-since">—</strong></div>
+            </div>
+            <div class="action-row">
+              <button class="btn btn-secondary" type="button" id="reset-stats">重置统计</button>
+              <p class="help">只清空计数，不会删除缓存。</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- 导入导出 ---------- -->
+        <section class="section" id="section-data" aria-labelledby="heading-data" hidden>
+          <div class="card">
+            <h2 class="card-title" id="heading-data">导出设置</h2>
+            <p class="card-desc">导出为 JSON 文件，便于备份或迁移到另一台设备。</p>
+            <label class="check-row">
+              <input class="checkbox" type="checkbox" id="export-include-key">
+              <span>导出文件中包含 API Key（文件请妥善保管）</span>
+            </label>
+            <div class="action-row">
+              <button class="btn btn-secondary" type="button" id="export-settings">导出设置</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">导入设置</h2>
+            <p class="card-desc">选择之前导出的 JSON 文件。导入会覆盖当前全部配置，操作前建议先导出备份。</p>
+            <div class="action-row">
+              <button class="btn btn-secondary" type="button" id="import-settings">选择 JSON 文件</button>
+              <input type="file" id="import-file" accept=".json,application/json" hidden>
+            </div>
+            <div class="inline-result" id="import-result" hidden></div>
+          </div>
+
+          <div class="card card--danger">
+            <h2 class="card-title">恢复默认设置</h2>
+            <p class="card-desc">清除全部自定义配置：API 配置、术语表、站点规则、提示词与缓存设置都会被重置。</p>
+            <div class="action-row">
+              <button class="btn btn-danger" type="button" id="reset-settings">恢复默认设置</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- 快捷键 ---------- -->
+        <section class="section" id="section-shortcuts" aria-labelledby="heading-shortcuts" hidden>
+          <div class="card">
+            <h2 class="card-title" id="heading-shortcuts">键盘快捷键</h2>
+            <div class="shortcut-list" id="shortcut-list"></div>
+            <div class="action-row">
+              <button class="btn btn-secondary" type="button" id="open-shortcuts">打开 Edge 快捷键设置</button>
+              <p class="help">快捷键由 Edge 管理，可在扩展快捷键页面修改。</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">工具栏图标</h2>
+            <div class="form-grid two">
+              <div class="field">
+                <label class="label" for="click-action">点击扩展图标时</label>
+                <span class="select-shell">
+                  <select class="select" id="click-action" data-setting="ui.clickAction">
+                    <option value="popup">打开控制面板（默认）</option>
+                    <option value="toggle">直接翻译 / 还原当前页面</option>
+                  </select>
+                  <svg class="select-chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+                </span>
+              </div>
+            </div>
+            <p class="help">默认点击图标打开控制面板，工具栏图标不会被翻译功能占用。只有你主动切到「直接翻译 / 还原」时，图标才会被占用（此时控制面板可通过扩展管理页的「扩展选项」进入）。</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">右键菜单</h2>
+            <ul class="plain-list">
+              <li>AI 翻译选中文字（仅在选中文字时出现）</li>
+              <li>AI 双语翻译 / 还原此页面</li>
+            </ul>
+            <p class="help">只保留两个入口，避免菜单过长。日常更推荐工具栏图标或 Alt + T。</p>
+          </div>
+        </section>
+
+        <!-- ---------- 关于 ---------- -->
+        <section class="section" id="section-about" aria-labelledby="heading-about" hidden>
+          <div class="card about-card">
+            <img class="about-logo" src="../assets/logo.svg" alt="" width="56" height="56">
+            <div class="about-text">
+              <h2 class="card-title about-name" id="heading-about">AI 双语翻译</h2>
+              <p class="about-version" id="about-version">版本 1.0.0</p>
+            </div>
+            <p class="about-desc">用任意 OpenAI 兼容大模型把网页变成双语对照，并支持划词流式翻译。界面与译文都按校样批注的视觉语言设计：朱砂批注、纸感底色、安静不打扰。</p>
+            <ul class="feature-list">
+              <li><strong>零构建、零依赖</strong><span>下载即可加载为解压缩扩展，源码可直接阅读与修改。</span></li>
+              <li><strong>Key 只在后台</strong><span>API Key 与网络请求都留在扩展后台，页面上下文无法读取。</span></li>
+              <li><strong>本地优先</strong><span>缓存、统计与设置全部保存在本机，没有账号体系，也没有遥测。</span></li>
+              <li><strong>任意兼容接口</strong><span>DeepSeek、OpenAI、Ollama、SiliconFlow 以及各类 OpenAI 兼容中转。</span></li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">隐私说明</h2>
+            <p class="card-desc">扩展只会在翻译时把待翻译文本发送到你配置的模型接口，不会发送浏览记录、页面地址以外的其他信息。缓存与用量统计仅保存在本机，清除扩展数据就会全部删除。</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">开源信息</h2>
+            <dl class="info-list">
+              <div><dt>Manifest 版本</dt><dd>V3</dd></div>
+              <div><dt>最低浏览器版本</dt><dd>Edge / Chromium 114</dd></div>
+              <div><dt>运行方式</dt><dd>原生 JavaScript ES Module，无构建步骤</dd></div>
+              <div><dt>版本</dt><dd id="about-version-2">1.0.0</dd></div>
+            </dl>
+          </div>
+        </section>
+      </main>
+
+      <footer class="page-footer">
+        <span>设置修改后立即保存并在所有标签页生效。</span>
+        <span class="footer-mark" aria-hidden="true">校样批注</span>
+      </footer>
+    </div>
+  </div>
+
+  <dialog class="dialog" id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <form method="dialog" class="dialog-form">
+      <h2 class="dialog-title" id="confirm-title">请确认</h2>
+      <p class="dialog-message" id="confirm-message"></p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" type="submit" value="cancel">取消</button>
+        <button class="btn btn-danger" type="submit" value="confirm" id="confirm-accept">确认</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

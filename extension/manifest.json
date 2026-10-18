@@ -1,0 +1,85 @@
+{
+  "manifest_version": 3,
+  "name": "AI 双语翻译",
+  "short_name": "AI 翻译",
+  "version": "1.1.0",
+  "description": "基于大模型的网页双语翻译：全页对照、划词流式翻译、术语表与本地缓存。支持 DeepSeek / OpenAI / Ollama 等任意 OpenAI 兼容接口。",
+  "minimum_chrome_version": "114",
+  "icons": {
+    "16": "src/assets/icon16.png",
+    "32": "src/assets/icon32.png",
+    "48": "src/assets/icon48.png",
+    "128": "src/assets/icon128.png"
+  },
+  "action": {
+    "default_title": "AI 双语翻译",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "src/assets/icon16.png",
+      "32": "src/assets/icon32.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "contextMenus",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "exclude_matches": [
+        "*://*.microsoftedge.microsoft.com/*",
+        "*://chrome.google.com/webstore/*",
+        "*://chromewebstore.google.com/*"
+      ],
+      "js": [
+        "src/content/00-core.js",
+        "src/content/10-segmenter.js",
+        "src/content/20-translator.js",
+        "src/content/30-renderer.js",
+        "src/content/40-selection.js",
+        "src/content/50-observer.js",
+        "src/content/90-main.js"
+      ],
+      "css": [
+        "src/content/content.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "commands": {
+    "toggle-translate": {
+      "suggested_key": {
+        "default": "Alt+T"
+      },
+      "description": "翻译 / 还原当前页面"
+    },
+    "toggle-mode": {
+      "suggested_key": {
+        "default": "Alt+M"
+      },
+      "description": "切换双语 / 仅译文"
+    },
+    "translate-selection": {
+      "suggested_key": {
+        "default": "Alt+S"
+      },
+      "description": "翻译选中文字"
+    }
+  },
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": true
+  }
+}

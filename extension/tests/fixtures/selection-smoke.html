@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>划词翻译浮层 · 真实扩展冒烟页</title>
+<!--
+  真实扩展冒烟页（不 mock chrome.*）。
+  用法：加载未打包扩展后，经 http:// 打开本页（content_scripts 不注入 file://）。
+  页面加载完成后会自动选中一段英文，触发 content script 的 selectionchange，
+  正常情况下选区右下出现朱砂圆形「译」按钮。用于验证：
+    1) 40-selection.js 在真实 content script（isolated world）里初始化成功；
+    2) Shadow DOM 宿主 #ait-selection-root 注入并渲染触发按钮。
+  无头验证：
+    msedge --headless=new --disable-gpu --hide-scrollbars
+           --disable-extensions-except=F:\DSH\翻译\extension
+           --load-extension=F:\DSH\翻译\extension
+           --window-size=1440,900 --virtual-time-budget=6000
+           --screenshot=out.png http://127.0.0.1:8766/extension/tests/fixtures/selection-smoke.html
+-->
+<style>
+  :root {
+    --paper: #fbfaf7;
+    --ink: #221d16;
+    --ink-2: #5f574a;
+    --accent: #c2410c;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 46px 26px 100px;
+  }
+
+  .kicker {
+    margin-bottom: 14px;
+    color: var(--accent);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin-bottom: 22px;
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  p {
+    margin-bottom: 20px;
+    font-size: 16.5px;
+    line-height: 1.9;
+  }
+
+  .hint {
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px dashed #d2cab9;
+    color: #8d8475;
+    font-family: Consolas, monospace;
+    font-size: 11.5px;
+    line-height: 1.9;
+  }
+
+  ::selection {
+    background: rgba(194, 65, 12, 0.18);
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="kicker">Real Extension Smoke Test</p>
+  <h1>Selection Overlay in the Content Script World</h1>
+  <p id="target">Plain text is the most durable format we have. It has survived every operating system, every editor, and every decade of hardware churn, because it asks for nothing but a way to read bytes.</p>
+  <p>This page does not mock the extension runtime. After load, a script selects part of the first paragraph, which fires selectionchange inside the content script and should reveal the cairn-red trigger at the end of the selection.</p>
+  <div class="hint">如果是真实扩展环境，选区右下应出现圆形「译」按钮；否则说明 content script 注入或 Shadow DOM 渲染不生效。</div>
+</main>
+<script>
+  window.addEventListener("load", function () {
+    setTimeout(function () {
+      var target = document.getElementById("target");
+      var node = target.firstChild;
+      var range = document.createRange();
+      range.setStart(node, 0);
+      range.setEnd(node, 120);
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, view: window }));
+
+      // ?click=1：等触发按钮渲染后点击，验证真实扩展的 ollama/OpenAI 端口链路
+      // （临时 profile 没有 API Key，预期卡片显示 NO_API_KEY 错误与重试按钮）
+      if (new URLSearchParams(location.search).get("click") !== "1") return;
+      var tries = 0;
+      var timer = setInterval(function () {
+        tries += 1;
+        var host = document.getElementById("ait-selection-root");
+        var trigger = host && host.shadowRoot ? host.shadowRoot.querySelector(".ait-sel-trigger") : null;
+        if (trigger && !trigger.hidden) {
+          clearInterval(timer);
+          trigger.click();
+          return;
+        }
+        if (tries > 40) clearInterval(timer);
+      }, 100);
+    }, 400);
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>划词翻译浮层 · 自测页（selection-ui）</title>
+<!--
+  划词翻译浮层自测页。
+  用法：
+    1) 普通页面直接选中任意文字，可看到圆形「译」按钮，点击弹出卡片。
+    2) 场景参数（URL query）：
+       ?scene=trigger   只显示选区与触发按钮（默认）
+       ?scene=card      打开卡片并流式输出到完成
+       ?scene=stream    打开卡片，停在流式输出中
+       ?scene=thought   带思考过程的流式输出（?expand=1 展开思考折叠区）
+       ?scene=error     错误态与重试按钮
+       ?scene=long      长原文（卡片内部滚动）
+       ?scene=nostream  不 mock chrome.runtime.connect，验证非流式降级
+       ?scene=lang      打开卡片后切换目标语言并重译
+       ?scene=lang2     切换 English 后关闭卡片，再划词验证会话内语言记忆
+       ?scene=flip      选中页面底部文字，验证卡片向上翻转
+       ?scene=auto      autoPopup 开启时选中即弹卡片
+       ?scene=input     可编辑区域内的选区不出现触发按钮
+       ?scene=dark      暗色主题
+    3) mock 说明：本页在加载 00-core.js / 40-selection.js 之前用假 chrome.runtime
+       拦截启动消息，connect() 返回假 port 并按 SSE 分片节奏推送 chunk / done。
+  无头 Edge 截图：
+       msedge --headless=new --disable-gpu --hide-scrollbars --window-size=1440,900
+              --virtual-time-budget=6000 --screenshot=out.png "file:///.../selection-demo.html?scene=card"
+-->
+<style>
+  :root {
+    --paper: #fbfaf7;
+    --card: #fffdf8;
+    --line: #e3ddd1;
+    --line-2: #d2cab9;
+    --ink: #221d16;
+    --ink-2: #5f574a;
+    --ink-3: #8d8475;
+    --accent: #c2410c;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    background: var(--paper);
+    color-scheme: light;
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- 顶部演示工具条（仅测试页，不属于扩展 UI） ---- */
+  .demo-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 46px;
+    padding: 7px 20px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(251, 250, 247, 0.96);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+
+  .demo-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .demo-mark {
+    width: 3px;
+    height: 14px;
+    border-radius: 1px;
+    background: var(--accent);
+  }
+
+  .demo-name {
+    font-family: Georgia, "Songti SC", serif;
+    font-weight: 600;
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
+  }
+
+  .demo-sep {
+    color: var(--line-2);
+  }
+
+  .demo-sub {
+    color: var(--ink-3);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+
+  .demo-scene {
+    padding: 1px 7px;
+    border: 1px solid var(--line-2);
+    border-radius: 5px;
+    color: var(--ink-2);
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 10px;
+  }
+
+  .demo-nav {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .demo-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .demo-nav button {
+    flex: none;
+    height: 25px;
+    padding: 0 9px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ink-2);
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 23px;
+    cursor: pointer;
+    transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
+  }
+
+  .demo-nav button:hover {
+    border-color: var(--line-2);
+    background: var(--card);
+    color: var(--ink);
+  }
+
+  .demo-nav button.is-active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(194, 65, 12, 0.05);
+  }
+
+  /* ---- 页面正文 ---- */
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 30px 26px 110px;
+  }
+
+  .kicker {
+    margin-bottom: 13px;
+    color: var(--accent);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .article h1 {
+    margin-bottom: 18px;
+    color: var(--ink);
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-size: 33px;
+    font-weight: 600;
+    line-height: 1.28;
+    letter-spacing: -0.005em;
+  }
+
+  .lead {
+    margin-bottom: 30px;
+    color: var(--ink-2);
+    font-size: 16.5px;
+    line-height: 1.75;
+  }
+
+  .article p.para {
+    margin-bottom: 21px;
+    color: var(--ink);
+    font-size: 16.5px;
+    line-height: 1.9;
+  }
+
+  .article p.para + p.para {
+    margin-top: 0;
+  }
+
+  .input-demo {
+    margin: 34px 0 10px;
+  }
+
+  .input-demo-label {
+    margin-bottom: 8px;
+    color: var(--ink-3);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+
+  .input-demo-box {
+    padding: 11px 13px;
+    border: 1px dashed var(--line-2);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--ink-2);
+    font-size: 14px;
+    line-height: 1.7;
+    outline: none;
+  }
+
+  .input-demo-box:focus {
+    border-color: var(--accent);
+  }
+
+  .demo-note {
+    margin-top: 46px;
+    padding-top: 17px;
+    border-top: 1px dashed var(--line-2);
+    color: var(--ink-3);
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.9;
+  }
+
+  .demo-note b {
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+
+  .demo-note code {
+    padding: 1px 5px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--card);
+    font-size: 10.5px;
+    color: var(--accent);
+  }
+
+  /* ---- 暗色演示 ---- */
+  html.demo-dark {
+    --paper: #15140f;
+    --card: #1e1c16;
+    --line: #353128;
+    --line-2: #484234;
+    --ink: #ece6da;
+    --ink-2: #b3ab9b;
+    --ink-3: #8a8274;
+    --accent: #fb923c;
+    color-scheme: dark;
+  }
+
+  html.demo-dark .demo-bar {
+    background: rgba(21, 20, 15, 0.96);
+  }
+
+  /* ---- 窄屏 ---- */
+  @media (max-width: 760px) {
+    .demo-bar {
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      padding: 8px 14px;
+    }
+
+    .demo-nav {
+      order: 3;
+      width: 100%;
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      overflow-x: visible;
+    }
+
+    .page {
+      padding: 22px 18px 90px;
+    }
+
+    .article h1 {
+      font-size: 26px;
+    }
+
+    .article p.para,
+    .lead {
+      font-size: 16px;
+      line-height: 1.85;
+    }
+  }
+
+  ::selection {
+    background: rgba(194, 65, 12, 0.18);
+  }
+
+  html.demo-dark ::selection {
+    background: rgba(251, 146, 60, 0.24);
+  }
+</style>
+</head>
+<body>
+<script>
+  /* 自测用：收集脚本异常，?debug=1 时显示在左下角面板 */
+  window.__AIT_ERRORS__ = [];
+  window.addEventListener("error", function (event) {
+    window.__AIT_ERRORS__.push(String(event.message) + " @" + String(event.filename).split("/").pop() + ":" + event.lineno);
+  });
+  window.addEventListener("unhandledrejection", function (event) {
+    window.__AIT_ERRORS__.push("reject: " + String(event.reason));
+  });
+</script>
+<header class="demo-bar">
+  <div class="demo-title">
+    <span class="demo-mark"></span>
+    <span class="demo-name">AI 双语翻译</span>
+    <span class="demo-sep">/</span>
+    <span class="demo-sub">划词浮层自测</span>
+    <span class="demo-scene" id="scene-label">trigger</span>
+  </div>
+  <nav class="demo-nav" id="scene-nav">
+    <button type="button" data-scene="trigger">触发按钮</button>
+    <button type="button" data-scene="card">流式卡片</button>
+    <button type="button" data-scene="stream">流式中</button>
+    <button type="button" data-scene="thought">思考过程</button>
+    <button type="button" data-scene="error">错误态</button>
+    <button type="button" data-scene="long">长原文</button>
+    <button type="button" data-scene="nostream">非流式</button>
+    <button type="button" data-scene="lang2">语言记忆</button>
+    <button type="button" data-scene="flip">边缘翻转</button>
+    <button type="button" data-scene="auto">自动弹窗</button>
+    <button type="button" data-scene="input">输入框禁用</button>
+    <button type="button" data-scene="dark">暗色</button>
+  </nav>
+</header>
+
+<main class="page">
+  <div class="article">
+    <p class="kicker">Notes on a Format</p>
+    <h1>The Quiet Durability of Plain Text</h1>
+    <p class="lead">A short demonstration article for the selection translation overlay. Select any sentence to see the cairn-red trigger; click it to open the streaming card.</p>
+
+    <p class="para" data-para="first">Plain text is the most durable format we have. It has survived every operating system, every editor, and every decade of hardware churn, because it asks for nothing but a way to read bytes. When a document is written in plain text, the tooling around it can change without touching the words themselves.</p>
+
+    <p class="para" data-para="long">Consider what happens when you open a file that was written thirty years ago. A word processor may refuse it, a proprietary format may have lost its decoder, but a plain text file still opens in a terminal, in an editor, in a browser, on a phone. The format does not depend on a vendor, a license, or a version number. That is not a technical achievement so much as a refusal to be clever: the file says what it means, and nothing else. This is why notes, logs, source code, configuration, and correspondence have all converged on it, and why the tools built around it can be replaced one by one without losing the record. The document is not the application. The document is the words.</p>
+
+    <p class="para" data-para="last">Reading, too, benefits from this restraint. A page of plain text has no chrome to distract from the sentence, no layout to negotiate with, no hidden state. What remains is the thing itself: a line of thought, set down and left alone.</p>
+
+    <div class="input-demo">
+      <div class="input-demo-label">可编辑区域（在此处划词不应出现「译」按钮，?scene=input 可复现）</div>
+      <div class="input-demo-box" contenteditable="true" data-para="editable">Editable content: selecting text inside this box must not show the translation trigger, because editing shortcuts keep their native behavior.</div>
+    </div>
+
+    <div class="demo-note">
+      <div><b>自测页</b>：mock 了 <code>chrome.runtime</code>，不加载真实扩展后台。</div>
+      <div>connect 返回假 port，按 SSE 分片节奏推送 <code>chunk</code> / <code>done</code> / <code>error</code>。</div>
+      <div>场景参数：<code>?scene=trigger|card|stream|thought|error|long|nostream|lang|lang2|flip|auto|input|dark</code>，<code>&amp;expand=1</code> 展开思考过程。</div>
+      <div>截图说明：本页向 shadow root 注入 <code>transition/animation: none</code>，避免无头虚拟时间下过渡停在首帧；<code>?debug=1</code> 显示状态面板。</div>
+    </div>
+  </div>
+</main>
+
+<pre id="ait-debug-panel" hidden style="position:fixed;left:8px;bottom:8px;z-index:2147483001;max-width:620px;max-height:300px;overflow:auto;margin:0;padding:8px 10px;border-radius:6px;background:rgba(20,18,14,.82);color:#e8e2d6;font:10px/1.5 Consolas,monospace;white-space:pre-wrap;pointer-events:none;"></pre>
+
+<script>
+  /* ===== mock chrome.runtime（仅测试页使用，不进入扩展） ===== */
+  (function () {
+    "use strict";
+
+    var params = new URLSearchParams(location.search);
+    var scene = params.get("scene") || "trigger";
+
+    var BASE_SETTINGS = {
+      version: 1,
+      provider: {
+        baseUrl: "https://api.deepseek.com/v1",
+        apiKey: "sk-demo-not-a-real-key",
+        model: "deepseek-chat",
+        temperature: 0.2,
+        maxTokens: 0,
+        timeoutMs: 60000,
+        stream: true,
+        extraHeaders: {}
+      },
+      language: { source: "auto", target: "zh-CN" },
+      translate: {
+        mode: "bilingual",
+        concurrency: 3,
+        batchSize: 8,
+        maxSegmentChars: 1500,
+        autoTranslate: false,
+        autoSites: [],
+        excludeSites: [],
+        minTextLength: 2,
+        skipCode: true,
+        retryLimit: 2,
+        showOriginalDefault: true
+      },
+      selection: {
+        enabled: true,
+        autoPopup: false,
+        targetLang: "zh-CN",
+        showOriginal: true,
+        stream: true,
+        maxChars: 6000
+      },
+      glossary: [],
+      customPrompt: { system: "", page: "", selection: "" },
+      cache: { enabled: true, maxEntries: 2000, ttlDays: 30 },
+      ui: { theme: "auto", locale: "zh-CN", firstRun: false }
+    };
+
+    var TRANSLATIONS = {
+      durable:
+        "纯文本是我们所拥有的最持久的格式。它熬过了每一种操作系统、每一款编辑器，也熬过了硬件更迭的每一个十年，因为它别无所求，只要有一种读取字节的方式。当一份文档以纯文本写成时，围绕它的工具可以不断更换，而文字本身毫发无损。",
+      long:
+        "不妨想一想，当你打开一份三十年前写下的文件时会发生什么。文字处理软件可能拒绝它，专有格式可能早已失去解码器，而纯文本文件依然能在终端、编辑器、浏览器、手机上打开。这种格式不依赖厂商、许可证或版本号。与其说这是技术成就，不如说是一种拒绝取巧的坚持：文件只说出它想说的，别无其他。正因如此，笔记、日志、源代码、配置和书信都汇聚到它身上；也正因如此，围绕它构建的工具可以一个个被替换，而记录本身不会丢失。文档不是应用，文档就是文字。",
+      last:
+        "阅读同样受益于这种克制。一页纯文本没有多余的界面分散对句子的注意，没有版式需要迁就，也没有隐藏状态。剩下的只有事物本身：一行思考，写下来，然后任其安静。"
+    };
+
+    var EN_TRANSLATIONS = {
+      durable:
+        "Plain text is the most durable format we own. It has outlived every operating system, every editor, and every decade of hardware churn, because it asks for nothing more than a way to read bytes. When a document is written in plain text, the tools around it can change without touching a single word.",
+      last:
+        "Reading, too, benefits from this restraint. A page of plain text has no chrome to distract from the sentence, no layout to negotiate with, no hidden state. What remains is the thing itself: a line of thought, set down and left alone."
+    };
+
+    var THOUGHT =
+      "先判断文体：这是一段说明文，语气克制，不能夸张。核心句 asks for nothing but a way to read bytes 直译会生硬，处理成「别无所求，只要有一种读取字节的方式」更贴合中文节奏。hardware churn 指硬件不断更替，译作「硬件更迭」比「硬件翻搅」自然。the words themselves 要保留强调语气，译为「文字本身」。整体保持短句，不添加原文没有的解释。";
+
+    function clone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function settingsForScene() {
+      var settings = clone(BASE_SETTINGS);
+      if (scene === "dark") settings.ui.theme = "dark";
+      if (scene === "auto") settings.selection.autoPopup = true;
+      return settings;
+    }
+
+    function fakeTranslation(text, targetLang) {
+      var value = String(text || "");
+      var toEnglish = !!targetLang && String(targetLang).indexOf("zh") !== 0;
+      if (value.indexOf("durable") >= 0 || value.indexOf("survived") >= 0) {
+        return toEnglish ? EN_TRANSLATIONS.durable : TRANSLATIONS.durable;
+      }
+      if (value.indexOf("Consider") >= 0) return TRANSLATIONS.long;
+      if (value.indexOf("Reading") >= 0 || value.indexOf("remains") >= 0) {
+        return toEnglish ? EN_TRANSLATIONS.last : TRANSLATIONS.last;
+      }
+      return toEnglish ? EN_TRANSLATIONS.durable : TRANSLATIONS.durable;
+    }
+
+    /* 假 port：按 SSE 分片节奏推送 chunk / done / error */
+    function createPort() {
+      var messageListeners = [];
+      var disconnectListeners = [];
+      var timers = [];
+      var aborted = false;
+      var currentReasoning = "";
+      var port;
+
+      function clearTimers() {
+        for (var i = 0; i < timers.length; i += 1) clearTimeout(timers[i]);
+        timers.length = 0;
+      }
+
+      function later(fn, ms) {
+        if (aborted) return;
+        timers.push(setTimeout(fn, ms));
+      }
+
+      function emit(message) {
+        if (aborted) return;
+        messageListeners.forEach(function (fn) {
+          try {
+            fn(message, port);
+          } catch (_) {}
+        });
+      }
+
+      function splitChunks(text) {
+        var sizes = [4, 7, 5, 9, 6, 8, 5, 7, 4, 10, 6, 8];
+        var chunks = [];
+        var index = 0;
+        var n = 0;
+        while (index < text.length) {
+          var size = sizes[n % sizes.length];
+          n += 1;
+          chunks.push(text.slice(index, index + size));
+          index += size;
+        }
+        return chunks;
+      }
+
+      function pushReasoning(text, done) {
+        var chunks = splitChunks(text);
+        var content = "";
+        var index = 0;
+        function step() {
+          if (aborted) return;
+          if (index >= chunks.length) {
+            if (typeof done === "function") done(content);
+            return;
+          }
+          content += chunks[index];
+          index += 1;
+          currentReasoning = content;
+          emit({ type: "chunk", delta: "", content: "", reasoning: content });
+          later(step, 24);
+        }
+        step();
+      }
+
+      function pushContent(text, done) {
+        var chunks = splitChunks(text);
+        var content = "";
+        var index = 0;
+        function step() {
+          if (aborted) return;
+          if (index >= chunks.length) {
+            if (typeof done === "function") done(content);
+            return;
+          }
+          content += chunks[index];
+          index += 1;
+          emit({ type: "chunk", delta: chunks[index - 1], content: content, reasoning: currentReasoning });
+          later(step, 34);
+        }
+        step();
+      }
+
+      function pushPartial(text) {
+        var partial = text.slice(0, Math.round(text.length * 0.46));
+        var chunks = splitChunks(partial);
+        var content = "";
+        var index = 0;
+        function step() {
+          if (aborted || index >= chunks.length) return;
+          content += chunks[index];
+          index += 1;
+          emit({ type: "chunk", delta: chunks[index - 1], content: content });
+          later(step, 46);
+        }
+        step();
+      }
+
+      function startStream(payload) {
+        var target = fakeTranslation(payload && payload.text, payload && payload.targetLang);
+        later(function () {
+          emit({
+            type: "meta",
+            provider: "https://api.deepseek.com/v1",
+            model: scene === "thought" ? "deepseek-reasoner" : "deepseek-chat"
+          });
+        }, 70);
+
+        if (scene === "error") {
+          later(function () {
+            emit({
+              type: "error",
+              code: "HTTP_401",
+              message: "API 鉴权失败（401），请检查 Key 是否正确、是否有该模型权限。"
+            });
+          }, 430);
+          return;
+        }
+
+        if (scene === "stream") {
+          pushPartial(target);
+          return;
+        }
+
+        if (scene === "thought") {
+          pushReasoning(THOUGHT, function () {
+            pushContent(target, function (finalText) {
+              emit({
+                type: "done",
+                content: finalText,
+                cached: false,
+                usage: { tokensIn: 386, tokensOut: 214 }
+              });
+            });
+          });
+          return;
+        }
+
+        pushContent(target, function (finalText) {
+          emit({
+            type: "done",
+            content: finalText,
+            cached: false,
+            usage: { tokensIn: 312, tokensOut: 168 }
+          });
+        });
+      }
+
+      port = {
+        name: "ait-stream",
+        onMessage: {
+          addListener: function (fn) {
+            if (typeof fn === "function") messageListeners.push(fn);
+          }
+        },
+        onDisconnect: {
+          addListener: function (fn) {
+            if (typeof fn === "function") disconnectListeners.push(fn);
+          }
+        },
+        postMessage: function (message) {
+          if (!message || typeof message !== "object") return;
+          if (message.type === "abort") {
+            aborted = true;
+            clearTimers();
+            return;
+          }
+          if (message.type === "start") startStream(message.payload || {});
+        },
+        disconnect: function () {
+          aborted = true;
+          clearTimers();
+          disconnectListeners.forEach(function (fn) {
+            try {
+              fn(port);
+            } catch (_) {}
+          });
+        }
+      };
+
+      return port;
+    }
+
+    var runtime = {
+      lastError: null,
+      onMessage: { addListener: function () {} },
+      onConnect: { addListener: function () {} },
+      sendMessage: function (message, callback) {
+        var respond = typeof callback === "function" ? callback : function () {};
+        var type = message && message.type;
+        setTimeout(function () {
+          if (type === "ait:settings.get") {
+            respond({ ok: true, settings: settingsForScene() });
+            return;
+          }
+          if (type === "ait:translate.text") {
+            respond({
+              ok: true,
+              text: fakeTranslation((message.payload || {}).text, (message.payload || {}).targetLang),
+              cached: false,
+              usage: { tokensIn: 288, tokensOut: 156 }
+            });
+            return;
+          }
+          respond({ ok: false, error: { code: "INTERNAL", message: "mock 未实现：" + type } });
+        }, type === "ait:translate.text" ? 280 : 20);
+      }
+    };
+
+    if (scene !== "nostream") {
+      runtime.connect = function () {
+        return createPort();
+      };
+    }
+
+    var existing = window.chrome || {};
+    try {
+      window.chrome = Object.assign({}, existing, { runtime: runtime });
+    } catch (_) {
+      window.chrome = { runtime: runtime };
+    }
+
+    window.__AIT_DEMO__ = {
+      scene: scene,
+      settings: settingsForScene()
+    };
+  })();
+</script>
+
+<script src="../../src/content/00-core.js"></script>
+<script src="../../src/content/40-selection.js"></script>
+
+<script>
+  /* ===== 场景驱动（仅测试页） ===== */
+  (function () {
+    "use strict";
+
+    var AIT = window.AIT;
+    var demo = window.__AIT_DEMO__ || { scene: "trigger" };
+    var scene = demo.scene;
+    var params = new URLSearchParams(location.search);
+    var expand = params.get("expand") === "1";
+
+    var TARGET_SENTENCE =
+      "It has survived every operating system, every editor, and every decade of hardware churn, because it asks for nothing but a way to read bytes.";
+
+    var labelEl = document.getElementById("scene-label");
+    if (labelEl) labelEl.textContent = expand ? scene + " + expand" : scene;
+
+    var nav = document.getElementById("scene-nav");
+    if (nav) {
+      var buttons = nav.querySelectorAll("[data-scene]");
+      for (var i = 0; i < buttons.length; i += 1) {
+        if (buttons[i].getAttribute("data-scene") === scene) buttons[i].classList.add("is-active");
+      }
+      nav.addEventListener("click", function (event) {
+        var button = event.target.closest ? event.target.closest("[data-scene]") : null;
+        if (!button) return;
+        var next = button.getAttribute("data-scene");
+        var query = "?scene=" + encodeURIComponent(next);
+        if (expand) query += "&expand=1";
+        location.href = location.pathname + query;
+      });
+    }
+
+    if (scene === "dark") document.documentElement.classList.add("demo-dark");
+
+    function dispatchMouseUp() {
+      document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, view: window }));
+    }
+
+    function selectText(root, needle) {
+      if (!root) return false;
+      var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+      var node;
+      while ((node = walker.nextNode())) {
+        var index = node.nodeValue.indexOf(needle);
+        if (index >= 0) {
+          var range = document.createRange();
+          range.setStart(node, index);
+          range.setEnd(node, index + needle.length);
+          var selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          dispatchMouseUp();
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function selectWhole(element) {
+      if (!element) return false;
+      var range = document.createRange();
+      range.selectNodeContents(element);
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      dispatchMouseUp();
+      return true;
+    }
+
+    function clickTrigger() {
+      var host = document.getElementById("ait-selection-root");
+      if (!host || !host.shadowRoot) return false;
+      var trigger = host.shadowRoot.querySelector(".ait-sel-trigger");
+      if (!trigger || trigger.hidden) return false;
+      trigger.click();
+      return true;
+    }
+
+    function clickTriggerWithRetry(attempt) {
+      if (clickTrigger()) return;
+      if (attempt >= 25) return;
+      setTimeout(function () {
+        clickTriggerWithRetry(attempt + 1);
+      }, 80);
+    }
+
+    function revealReasoning() {
+      var host = document.getElementById("ait-selection-root");
+      if (!host || !host.shadowRoot) return;
+      var reasoning = host.shadowRoot.querySelector(".ait-sel-reasoning");
+      if (reasoning && !reasoning.hidden) reasoning.open = true;
+    }
+
+    function runScene() {
+      var first = document.querySelector('[data-para="first"]');
+      var longPara = document.querySelector('[data-para="long"]');
+
+      if (scene === "trigger") {
+        selectText(first, TARGET_SENTENCE);
+        return;
+      }
+
+      if (scene === "long") {
+        selectWhole(longPara);
+        clickTriggerWithRetry(0);
+        return;
+      }
+
+      if (scene === "flip") {
+        // 选中页面底部的句子：视口下方空间不足，卡片应向上翻转
+        var third = document.querySelector('[data-para="last"]');
+        selectText(
+          third,
+          "A page of plain text has no chrome to distract from the sentence, no layout to negotiate with, no hidden state."
+        );
+        clickTriggerWithRetry(0);
+        return;
+      }
+
+      if (scene === "auto") {
+        // autoPopup：选中后不点按钮，卡片自动打开
+        selectText(first, TARGET_SENTENCE);
+        return;
+      }
+
+      if (scene === "input") {
+        // 可编辑区域内的选区不应出现触发按钮
+        var editable = document.querySelector('[data-para="editable"]');
+        if (editable) {
+          // 可编辑区域在页面底部，先滚动到可视区中部，选中后不出现触发按钮
+          editable.scrollIntoView({ block: "center" });
+          editable.focus({ preventScroll: true });
+          selectText(editable, "selecting text inside this box");
+        }
+        return;
+      }
+
+      if (scene === "lang") {
+        selectText(first, TARGET_SENTENCE);
+        clickTriggerWithRetry(0);
+        setTimeout(function () {
+          var host = document.getElementById("ait-selection-root");
+          var select = host && host.shadowRoot ? host.shadowRoot.querySelector(".ait-sel-select") : null;
+          if (!select) return;
+          select.value = "en";
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }, 2200);
+        return;
+      }
+
+      if (scene === "lang2") {
+        // 第一次：切换成 English 翻译；关闭；再划另一段，验证会话内语言记忆
+        selectText(first, TARGET_SENTENCE);
+        clickTriggerWithRetry(0);
+        setTimeout(function () {
+          var host = document.getElementById("ait-selection-root");
+          var select = host && host.shadowRoot ? host.shadowRoot.querySelector(".ait-sel-select") : null;
+          if (!select) return;
+          select.value = "en";
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }, 2200);
+        setTimeout(function () {
+          AIT.selection.close();
+        }, 3800);
+        setTimeout(function () {
+          var third = document.querySelector('[data-para="last"]');
+          selectText(third, "Reading, too, benefits from this restraint.");
+          clickTriggerWithRetry(0);
+        }, 4300);
+        return;
+      }
+
+      selectText(first, TARGET_SENTENCE);
+      clickTriggerWithRetry(0);
+
+      if (expand) {
+        setTimeout(revealReasoning, 2600);
+      }
+    }
+
+    function collectDebug() {
+      var host = document.getElementById("ait-selection-root");
+      var shadow = host ? host.shadowRoot : null;
+      var trigger = shadow ? shadow.querySelector(".ait-sel-trigger") : null;
+      var card = shadow ? shadow.querySelector(".ait-sel-card") : null;
+      var state = window.AIT && window.AIT.selection && window.AIT.selection.getState ? window.AIT.selection.getState() : null;
+      var triggerInfo = null;
+      if (trigger) {
+        var box = trigger.getBoundingClientRect();
+        triggerInfo = {
+          hidden: trigger.hidden,
+          cls: trigger.className,
+          left: trigger.style.left,
+          top: trigger.style.top,
+          opacity: getComputedStyle(trigger).opacity,
+          box: [Math.round(box.left), Math.round(box.top), Math.round(box.width), Math.round(box.height)]
+        };
+      }
+      return {
+        selectText: String(window.getSelection()).slice(0, 40),
+        hasAIT: !!window.AIT,
+        hasSelectionApi: !!(window.AIT && window.AIT.selection),
+        state: state,
+        host: !!host,
+        shadow: !!shadow,
+        trigger: triggerInfo,
+        card: card ? { hidden: card.hidden, cls: card.className } : null,
+        errors: window.__AIT_ERRORS__ || []
+      };
+    }
+
+    function startDebugPanel() {
+      var panel = document.getElementById("ait-debug-panel");
+      if (!panel) return;
+      panel.hidden = false;
+      var update = function () {
+        try {
+          var info = collectDebug();
+          var trigger = info.trigger || {};
+          var hostEl = document.getElementById("ait-selection-root");
+          var hostBox = hostEl ? hostEl.getBoundingClientRect() : null;
+          var shadowRoot = hostEl ? hostEl.shadowRoot : null;
+          var styleEl = shadowRoot ? shadowRoot.querySelector("style") : null;
+          var sheetRules = styleEl && styleEl.sheet ? styleEl.sheet.cssRules.length : -1;
+          var triggerEl = shadowRoot ? shadowRoot.querySelector(".ait-sel-trigger") : null;
+          var cs = triggerEl ? getComputedStyle(triggerEl) : null;
+          var hostCs = hostEl ? getComputedStyle(hostEl) : null;
+          var triggerRules = [];
+          if (styleEl && styleEl.sheet) {
+            for (var i = 0; i < styleEl.sheet.cssRules.length; i += 1) {
+              var rule = styleEl.sheet.cssRules[i];
+              if (rule.cssText && rule.cssText.indexOf("ait-sel-trigger") >= 0) triggerRules.push(rule.cssText);
+            }
+          }
+          panel.textContent = [
+            "STATE " + JSON.stringify(info.state),
+            "TRIGGER box=" + JSON.stringify(trigger.box) + " hidden=" + trigger.hidden + " styleLeft=" + trigger.left + " styleTop=" + trigger.top,
+            "COMPUTED opacity=" + (cs ? cs.opacity : "?") + " transform=" + (cs ? cs.transform : "?") + " pos=" + (cs ? cs.position : "?"),
+            "HOST box=" + (hostBox ? JSON.stringify([Math.round(hostBox.left), Math.round(hostBox.top), Math.round(hostBox.width), Math.round(hostBox.height)]) : "null") + " pos=" + (hostCs ? hostCs.position : "?"),
+            "CSS rules=" + sheetRules + " RULES=" + triggerRules.length,
+            "ERRORS " + JSON.stringify(info.errors)
+          ].join("\n");
+        } catch (error) {
+          panel.textContent = "debug error: " + error;
+        }
+      };
+      update();
+      setInterval(update, 150);
+    }
+
+    /**
+     * 自测页专用：向 shadow root 注入静态样式，关闭 CSS transition / animation。
+     * 无头 Edge 的 --virtual-time-budget 会快进 JS 定时器与 rAF，但合成器动画时钟
+     * 不推进，导致 opacity 过渡停在起始帧（元素肉眼不可见）。截图验收需要终态。
+     */
+    function disableMotion() {
+      var host = document.getElementById("ait-selection-root");
+      if (!host || !host.shadowRoot) return;
+      var style = document.createElement("style");
+      style.textContent = "*, *::before, *::after { transition: none !important; animation: none !important; }";
+      host.shadowRoot.appendChild(style);
+    }
+
+    function boot() {
+      if (!AIT || !AIT.selection) {
+        setTimeout(boot, 50);
+        return;
+      }
+      AIT.selection.init();
+      AIT.selection.applySettings(demo.settings);
+      disableMotion();
+      if (params.get("debug") === "1") startDebugPanel();
+      setTimeout(runScene, 90);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot, { once: true });
+    } else {
+      boot();
+    }
+  })();
+</script>
+</body>
+</html>

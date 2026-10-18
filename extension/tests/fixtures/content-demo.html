@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 双语翻译 · content engine fixture</title>
+<link rel="stylesheet" href="../../src/content/content.css">
+<style>
+  :root {
+    color-scheme: light dark;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background: #f4f1ea;
+    color: #1c1917;
+    font-family: Georgia, "Songti SC", serif;
+    font-size: 17px;
+    line-height: 1.75;
+  }
+
+  .demo-banner {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+    padding: 10px 24px;
+    border-bottom: 1px solid rgba(28, 25, 23, 0.12);
+    background: #fbfaf7;
+    color: #78716c;
+    font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+  }
+
+  .demo-banner strong {
+    color: #c2410c;
+    font-weight: 600;
+  }
+
+  #demo-state {
+    margin-left: auto;
+    color: #57534e;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .article {
+    box-sizing: border-box;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 32px 96px;
+  }
+
+  .article h1 {
+    margin: 0 0 18px;
+    font-size: 34px;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  .article h2 {
+    margin: 36px 0 12px;
+    font-size: 22px;
+    line-height: 1.35;
+  }
+
+  .article p {
+    margin: 0 0 16px;
+  }
+
+  .lede {
+    font-size: 19px;
+    color: #44403c;
+  }
+
+  .article em {
+    font-style: italic;
+  }
+
+  .article a {
+    color: #1c1917;
+    text-decoration-color: rgba(194, 65, 12, 0.45);
+    text-underline-offset: 3px;
+  }
+
+  .list {
+    margin: 0 0 18px;
+    padding-left: 22px;
+  }
+
+  .list li {
+    margin: 0 0 6px;
+  }
+
+  blockquote {
+    margin: 24px 0;
+    padding: 4px 0 4px 18px;
+    border-left: 2px solid rgba(28, 25, 23, 0.28);
+    color: #44403c;
+    font-style: italic;
+  }
+
+  table {
+    width: 100%;
+    margin: 20px 0 24px;
+    border-collapse: collapse;
+    font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+  }
+
+  th,
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(28, 25, 23, 0.1);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    color: #78716c;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  pre {
+    margin: 20px 0;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: #1c1917;
+    color: #e7e5e4;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+  }
+
+  .editable,
+  .hidden-note {
+    margin: 20px 0;
+    padding: 12px 14px;
+    border: 1px dashed rgba(28, 25, 23, 0.2);
+    border-radius: 10px;
+    color: #78716c;
+    font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 13px;
+  }
+
+  .symbols {
+    color: #a8a29e;
+    letter-spacing: 0.6em;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body {
+      background: #15140f;
+      color: #e7e5e4;
+    }
+
+    .demo-banner {
+      border-bottom-color: rgba(231, 229, 228, 0.14);
+      background: #1d1b16;
+      color: #a8a29e;
+    }
+
+    .demo-banner strong {
+      color: #fb923c;
+    }
+
+    #demo-state {
+      color: #a8a29e;
+    }
+
+    .lede,
+    blockquote {
+      color: #d6d3d1;
+    }
+
+    .article a {
+      color: #e7e5e4;
+    }
+
+    th,
+    td {
+      border-bottom-color: rgba(231, 229, 228, 0.12);
+    }
+
+    th {
+      color: #a8a29e;
+    }
+
+    .editable,
+    .hidden-note {
+      border-color: rgba(231, 229, 228, 0.2);
+      color: #a8a29e;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="demo-banner">
+    <strong>content engine fixture</strong>
+    <span>mock chrome.runtime.sendMessage · 场景：?scenario=bilingual | only | restored | error | retry | translating | backoff | apierror | retranslate</span>
+    <span id="demo-state">booting…</span>
+  </div>
+
+  <article class="article">
+    <h1>The Quiet Craft of Reading in Two Languages</h1>
+
+    <p class="lede">
+      A translated page should feel like a <em>proofread manuscript</em>:
+      the editor's notes sit beside the original, never on top of it.
+    </p>
+
+    <h2>Why paragraph-level translation works</h2>
+
+    <p>
+      Language models lose context when they translate sentence by sentence.
+      Grouping a whole paragraph keeps pronouns, tense and tone aligned.
+    </p>
+
+    <ul class="list">
+      <li>Blocks become <a href="#">readable units</a> instead of fragments.</li>
+      <li>Lists and headings keep their rhythm.</li>
+      <li>Code and editable fields stay untouched.</li>
+    </ul>
+
+    <blockquote>Translation is not a replacement for the original. It is a second reading.</blockquote>
+
+    <h2>What this fixture proves</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Surface</th>
+          <th>What we check</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Bilingual mode</td>
+          <td>Original and translation sit side by side.</td>
+        </tr>
+        <tr>
+          <td>Translation only</td>
+          <td>Original is hidden, translation remains.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      Every injected node uses the ait- prefix, so the host page keeps its own styles.
+    </p>
+
+    <p class="symbols">· · ·</p>
+
+    <p>这一段已经是简体中文，不应被再次翻译。</p>
+
+    <pre><code>const answer = await translate(page);  // never sent to the model</code></pre>
+
+    <div class="editable" contenteditable="true">This editable note should never be translated.</div>
+
+    <div class="hidden-note" style="display:none">Hidden paragraph should never be translated.</div>
+  </article>
+
+  <script>
+    /* ============================================================
+     * mock chrome：模拟 background 的 ait:settings.get / ait:translate.batch
+     * 只用于 content 引擎的无头验证，不属于扩展运行时。
+     * ============================================================ */
+    (function mockBackground() {
+      "use strict";
+
+      var scenario = new URLSearchParams(location.search).get("scenario") || "bilingual";
+      window.__DEMO_SCENARIO__ = scenario;
+      window.__DEMO_LOG__ = [];
+
+      var SETTINGS = {
+        version: 1,
+        provider: {
+          baseUrl: "http://127.0.0.1:8787/v1",
+          apiKey: "demo-key",
+          model: "demo-model",
+          temperature: 0.2,
+          maxTokens: 0,
+          timeoutMs: 60000,
+          stream: true,
+          extraHeaders: {}
+        },
+        language: { source: "auto", target: "zh-CN" },
+        translate: {
+          mode: "bilingual",
+          concurrency: 3,
+          batchSize: 8,
+          maxSegmentChars: 1500,
+          autoTranslate: false,
+          autoSites: [],
+          excludeSites: [],
+          minTextLength: 2,
+          skipCode: true,
+          retryLimit: 1,
+          showOriginalDefault: true
+        },
+        selection: {
+          enabled: true,
+          autoPopup: false,
+          targetLang: "zh-CN",
+          showOriginal: true,
+          stream: true,
+          maxChars: 6000
+        },
+        glossary: [],
+        customPrompt: { system: "", page: "", selection: "" },
+        cache: { enabled: false, maxEntries: 2000, ttlDays: 30 },
+        ui: { theme: "auto", locale: "zh-CN", firstRun: false }
+      };
+
+      var DICT = {
+        "The Quiet Craft of Reading in Two Languages": "双语阅读的静默技艺",
+        "A translated page should feel like a proofread manuscript: the editor's notes sit beside the original, never on top of it.": "一个被翻译的页面，应当像一份校对过的稿子：编辑的批注写在原文旁边，而不是盖在原文之上。",
+        "Why paragraph-level translation works": "为什么按段落翻译更可靠",
+        "Language models lose context when they translate sentence by sentence. Grouping a whole paragraph keeps pronouns, tense and tone aligned.": "大模型逐句翻译时会丢失上下文。把整段作为一个单位，代词、时态与语气才能保持一致。",
+        "Blocks become readable units instead of fragments.": "文本块成为可读的单元，而不是碎片。",
+        "Lists and headings keep their rhythm.": "列表与标题保持原有节奏。",
+        "Code and editable fields stay untouched.": "代码与可编辑区域保持原样。",
+        "Translation is not a replacement for the original. It is a second reading.": "翻译不是对原文的替代，而是一次重读。",
+        "What this fixture proves": "这个测试页验证了什么",
+        "Surface": "层面",
+        "What we check": "我们检查的内容",
+        "Bilingual mode": "双语模式",
+        "Original and translation sit side by side.": "原文与译文并排显示。",
+        "Translation only": "仅译文",
+        "Original is hidden, translation remains.": "原文被隐藏，译文保留。",
+        "Every injected node uses the ait- prefix, so the host page keeps its own styles.": "所有注入节点都带有 ait- 前缀，宿主页面的样式不受影响。"
+      };
+
+      var FAIL_TEXTS = [
+        "Language models lose context when they translate sentence by sentence. Grouping a whole paragraph keeps pronouns, tense and tone aligned.",
+        "Translation is not a replacement for the original. It is a second reading."
+      ];
+
+      var attempts = Object.create(null);
+      var batchCount = 0;
+
+      function shouldFail(text) {
+        if (scenario === "error" || scenario === "apierror") return FAIL_TEXTS.indexOf(text) >= 0;
+        if (scenario === "retry") {
+          if (text !== FAIL_TEXTS[0]) return false;
+          var n = attempts[text] || 0;
+          attempts[text] = n + 1;
+          return n < 3;
+        }
+        return false;
+      }
+
+      function translateSegment(segment) {
+        var text = segment && segment.text ? segment.text : "";
+        if (shouldFail(text)) return null;
+        if (Object.prototype.hasOwnProperty.call(DICT, text)) return DICT[text];
+        return "【模拟译文】" + text;
+      }
+
+      function handle(message) {
+        if (!message || typeof message.type !== "string") {
+          return { response: { ok: false, error: { code: "INTERNAL", message: "未实现的消息" } } };
+        }
+        if (message.type === "ait:settings.get") return { response: { ok: true, settings: SETTINGS } };
+        if (message.type === "ait:settings.patch") return { response: { ok: true, settings: SETTINGS } };
+        if (message.type === "ait:page.translated") return { response: { ok: true } };
+        if (message.type === "ait:translate.batch") {
+          var payload = message.payload || {};
+          var segments = Array.isArray(payload.segments) ? payload.segments : [];
+          batchCount += 1;
+          window.__DEMO_LOG__.push({ type: "batch", size: segments.length, index: batchCount });
+          if (scenario === "backoff" && batchCount === 1) {
+            return {
+              delay: 80,
+              response: { ok: false, error: { code: "HTTP_429", message: "请求过于频繁（429），已限流，请稍后重试或降低并发。" } }
+            };
+          }
+          if (scenario === "apierror") {
+            return {
+              delay: 80,
+              response: { ok: false, error: { code: "HTTP_429", message: "请求过于频繁（429），已限流，请稍后重试或降低并发。" } }
+            };
+          }
+          var results = [];
+          var failed = [];
+          for (var i = 0; i < segments.length; i += 1) {
+            var translated = translateSegment(segments[i]);
+            if (translated === null) failed.push(segments[i].id);
+            else results.push({ id: segments[i].id, text: translated });
+          }
+          var delay = 120;
+          if (scenario === "translating" && batchCount >= 2) delay = 60000;
+          return {
+            delay: delay,
+            response: {
+              ok: true,
+              results: results,
+              failed: failed,
+              cached: 0,
+              usage: { tokensIn: 0, tokensOut: 0 }
+            }
+          };
+        }
+        return { response: { ok: true } };
+      }
+
+      function sendMessage(message, callback) {
+        var outcome = handle(message);
+        var delay = outcome && typeof outcome.delay === "number" ? outcome.delay : 120;
+        var response = outcome && outcome.response ? outcome.response : outcome;
+        if (typeof callback === "function") {
+          setTimeout(function () {
+            callback(response);
+          }, delay);
+        }
+        return Promise.resolve(response);
+      }
+
+      function define(target, key, value) {
+        try {
+          target[key] = value;
+        } catch (error) {}
+        if (target[key] !== value) {
+          try {
+            Object.defineProperty(target, key, { value: value, configurable: true, writable: true });
+          } catch (error) {}
+        }
+      }
+
+      try {
+        if (!window.chrome) define(window, "chrome", {});
+        var runtime = {
+          id: "ait-demo",
+          lastError: null,
+          sendMessage: sendMessage,
+          onMessage: { addListener: function () {}, removeListener: function () {} },
+          connect: function () {
+            throw new Error("demo: streaming port not implemented");
+          }
+        };
+        define(window.chrome, "runtime", runtime);
+        if (!window.chrome.storage) define(window.chrome, "storage", {});
+        define(window.chrome.storage, "onChanged", { addListener: function () {}, removeListener: function () {} });
+        define(window.chrome.storage, "local", {
+          get: function (keys, callback) {
+            if (typeof callback === "function") callback({});
+          },
+          set: function (value, callback) {
+            if (typeof callback === "function") callback();
+          }
+        });
+      } catch (error) {
+        console.error("[demo] mock chrome failed", error);
+      }
+    })();
+  </script>
+
+  <script src="../../src/content/00-core.js"></script>
+  <script src="../../src/content/10-segmenter.js"></script>
+  <script src="../../src/content/20-translator.js"></script>
+  <script src="../../src/content/30-renderer.js"></script>
+  <script src="../../src/content/50-observer.js"></script>
+  <script src="../../src/content/90-main.js"></script>
+
+  <script>
+    /* ============================================================
+     * 编排：按 scenario 驱动翻译引擎，并把结果写回顶部状态条，
+     * 便于 --dump-dom 断言与 --screenshot 评审。
+     * ============================================================ */
+    (function orchestrate() {
+      "use strict";
+
+      var scenario = window.__DEMO_SCENARIO__ || "bilingual";
+      var stateEl = document.getElementById("demo-state");
+
+      function setState(text) {
+        if (stateEl) stateEl.textContent = text;
+      }
+
+      function waitFor(predicate, timeout) {
+        return new Promise(function (resolve, reject) {
+          var started = Date.now();
+          (function poll() {
+            var value = false;
+            try {
+              value = predicate();
+            } catch (error) {
+              value = false;
+            }
+            if (value) {
+              resolve(value);
+              return;
+            }
+            if (Date.now() - started > (timeout || 8000)) {
+              reject(new Error("timeout"));
+              return;
+            }
+            setTimeout(poll, 30);
+          })();
+        });
+      }
+
+      function transCount() {
+        return document.querySelectorAll(".ait-trans").length;
+      }
+
+      function errorCount() {
+        return document.querySelectorAll(".ait-error").length;
+      }
+
+      async function run() {
+        try {
+          await waitFor(function () {
+            return window.__AIT_DEBUG__ && window.__AIT_DEBUG__.translator;
+          }, 8000);
+          var AIT = window.__AIT_DEBUG__;
+          await waitFor(function () {
+            return !!AIT.state.settings;
+          }, 4000);
+          setState("ready · scenario=" + scenario);
+
+          if (scenario === "translating") {
+            void AIT.translator.translatePage();
+            await waitFor(function () {
+              return transCount() > 0;
+            }, 6000);
+            setState("translating · trans=" + transCount() + " · toast=" + (document.querySelector(".ait-toast--visible") ? "visible" : "hidden"));
+            document.documentElement.setAttribute("data-demo-done", "1");
+            return;
+          }
+
+          var result = await AIT.translator.translatePage();
+          window.__FIRST_IDS__ = Array.prototype.slice
+            .call(document.querySelectorAll(".ait-trans"))
+            .map(function (node) {
+              return node.getAttribute("data-ait-id");
+            });
+          setState("translated · " + JSON.stringify(result));
+
+          if (scenario === "only") {
+            AIT.renderer.applyMode("translation-only");
+            AIT.state.mode = "translation-only";
+            setState("translation-only · trans=" + transCount() + " · original=" + document.querySelectorAll("[data-ait-original]").length);
+          } else if (scenario === "restored") {
+            await AIT.translator.restore();
+            setState("restored · trans=" + transCount() + " · src=" + document.querySelectorAll("[data-ait-src]").length);
+            document.documentElement.setAttribute("data-demo-restored", "1");
+          } else if (scenario === "error") {
+            setState("errors · error=" + errorCount() + " · trans=" + transCount() + " · failed=" + result.failed);
+          } else if (scenario === "retry") {
+            await waitFor(function () {
+              return errorCount() > 0;
+            }, 8000);
+            var errorNodes = Array.prototype.slice.call(document.querySelectorAll(".ait-error"));
+            setState("error shown · clicking " + errorNodes.length + " retry node(s)");
+            errorNodes.forEach(function (node) {
+              node.click();
+            });
+            await waitFor(function () {
+              return errorCount() === 0;
+            }, 12000);
+            await new Promise(function (resolve) {
+              setTimeout(resolve, 180);
+            });
+            setState("retried · error=" + errorCount() + " · trans=" + transCount());
+          } else if (scenario === "retranslate") {
+            var firstIds = window.__FIRST_IDS__.slice();
+            await AIT.translator.restore();
+            setState("restored, translating again…");
+            await AIT.translator.translatePage();
+            var secondIds = Array.prototype.slice
+              .call(document.querySelectorAll(".ait-trans"))
+              .map(function (node) {
+                return node.getAttribute("data-ait-id");
+              });
+            var stable =
+              firstIds.length === secondIds.length &&
+              firstIds.every(function (id, index) {
+                return id === secondIds[index];
+              });
+            setState("retranslated · trans=" + transCount() + " · idsStable=" + stable);
+            document.documentElement.setAttribute("data-demo-ids-stable", stable ? "1" : "0");
+          } else if (scenario === "apierror") {
+            setState("api-error · error=" + errorCount() + " · trans=" + transCount() + " · batches=" + window.__DEMO_LOG__.length);
+          } else {
+            setState("bilingual · trans=" + transCount() + " · error=" + errorCount());
+          }
+          document.documentElement.setAttribute("data-demo-done", "1");
+        } catch (error) {
+          setState("demo error: " + (error && error.message));
+          document.documentElement.setAttribute("data-demo-error", String((error && error.message) || error));
+        }
+      }
+
+      void run();
+    })();
+  </script>
+</body>
+</html>

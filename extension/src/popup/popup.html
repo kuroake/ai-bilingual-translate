@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 双语翻译</title>
+  <link rel="icon" href="../assets/icon32.png">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <p class="demo-banner" id="demo-banner" hidden>演示模式 · 示例数据 · chrome.* 已由内存 mock 接管</p>
+
+    <header class="app-bar">
+      <div class="brand">
+        <img class="brand-logo" src="../assets/logo.svg" alt="" width="26" height="26">
+        <div class="brand-text">
+          <span class="brand-name">AI 双语翻译</span>
+          <span class="brand-sub">校样批注式网页翻译</span>
+        </div>
+      </div>
+      <button class="icon-btn" type="button" id="open-options" aria-label="打开设置" title="打开设置">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <main class="content">
+      <section class="page-card" aria-labelledby="page-title">
+        <div class="page-row">
+          <span class="page-glyph" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <path d="M14 2v6h6"></path>
+              <path d="M8 13h8M8 17h5"></path>
+            </svg>
+          </span>
+          <div class="page-info">
+            <h2 class="page-title allow-clip" id="page-title">正在读取当前页面…</h2>
+            <p class="page-url allow-clip" id="page-url">—</p>
+          </div>
+          <span class="badge" id="page-badge">探测中</span>
+        </div>
+        <p class="page-hint" id="page-hint" role="status" aria-live="polite">正在连接页面…</p>
+      </section>
+
+      <button class="btn btn-primary" type="button" id="toggle-translate" disabled>
+        <span class="btn-icon" id="toggle-icon" aria-hidden="true"></span>
+        <span id="toggle-label">翻译此页</span>
+      </button>
+
+      <div class="control-row">
+        <div class="field">
+          <label class="field-label" for="target-lang">目标语言</label>
+          <span class="select-shell">
+            <select class="select" id="target-lang"></select>
+            <svg class="select-chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m6 9 6 6 6-6"></path>
+            </svg>
+          </span>
+        </div>
+        <div class="field">
+          <span class="field-label" id="mode-label">显示方式</span>
+          <div class="segmented" role="group" aria-labelledby="mode-label">
+            <button class="segment" type="button" data-mode="bilingual" aria-pressed="false">双语</button>
+            <button class="segment" type="button" data-mode="translation-only" aria-pressed="false">仅译文</button>
+          </div>
+        </div>
+      </div>
+
+      <section class="panel" aria-labelledby="quick-title">
+        <div class="panel-head">
+          <h2 class="panel-title" id="quick-title">快速翻译</h2>
+          <span class="panel-meta">Alt+S 划词</span>
+        </div>
+        <label class="sr-only" for="quick-input">待翻译文本</label>
+        <textarea class="textarea" id="quick-input" rows="3" placeholder="粘贴文字，立即翻译…" spellcheck="false"></textarea>
+        <div class="quick-foot">
+          <span class="char-count" id="quick-count">0 / 6000</span>
+          <button class="btn btn-secondary btn-sm" type="button" id="quick-translate" disabled>
+            <span class="btn-spinner" aria-hidden="true" hidden></span>
+            <span id="quick-btn-label">翻译</span>
+          </button>
+        </div>
+        <div class="result" id="quick-result" hidden>
+          <div class="result-head">
+            <span class="result-tag" id="quick-result-tag">译文</span>
+            <button class="icon-btn icon-btn--sm" type="button" id="quick-copy" aria-label="复制译文" title="复制译文">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+                <path d="M5 15V5a2 2 0 0 1 2-2h10"></path>
+              </svg>
+            </button>
+          </div>
+          <p class="result-text" id="quick-result-text"></p>
+        </div>
+        <p class="error-line" id="quick-error" role="alert" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="summary-title">
+        <div class="panel-head">
+          <h2 class="panel-title" id="summary-title">缓存与用量</h2>
+          <span class="panel-meta" id="cache-meta">—</span>
+        </div>
+        <dl class="stat-grid">
+          <div class="stat"><dt>缓存条目</dt><dd id="stat-cache-entries">—</dd></div>
+          <div class="stat"><dt>缓存命中</dt><dd id="stat-cache-hits">—</dd></div>
+          <div class="stat"><dt>请求次数</dt><dd id="stat-requests">—</dd></div>
+          <div class="stat"><dt>Token 估算</dt><dd id="stat-tokens">—</dd></div>
+        </dl>
+        <p class="fine-print" id="stats-since">—</p>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <span class="kbd-hint"><kbd>Alt</kbd>+<kbd>T</kbd> 翻译</span>
+      <span class="kbd-hint"><kbd>Alt</kbd>+<kbd>M</kbd> 模式</span>
+      <span class="demo-tag" id="demo-tag" hidden>演示数据</span>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

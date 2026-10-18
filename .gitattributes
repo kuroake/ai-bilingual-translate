@@ -1,0 +1,11 @@
+# 统一换行符，保证跨平台一致（静态检查要求 LF）
+* text=auto eol=lf
+
+# 二进制
+*.png binary
+*.ico binary
+*.zip binary
+*.exe binary
+
+# PowerShell 脚本保持 CRLF 更稳妥
+*.ps1 text eol=crlf

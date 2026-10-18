@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>AI Translate E2E Fixture</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: Georgia, "Times New Roman", serif; max-width: 720px; margin: 48px auto; padding: 0 20px; line-height: 1.75; color: #1f1d19; background: #fbfaf7; }
+  h1 { font-size: 30px; line-height: 1.25; margin-bottom: 8px; }
+  h2 { font-size: 21px; margin-top: 32px; }
+  code { background: #f0ece2; padding: 2px 5px; border-radius: 3px; font-size: 13px; }
+  pre { background: #f0ece2; padding: 14px 16px; border-radius: 8px; overflow: auto; }
+  blockquote { border-left: 3px solid #d8d2c4; padding-left: 16px; color: #5b564c; font-style: italic; }
+  .meta { color: #8a8375; font-size: 13px; }
+</style>
+</head>
+<body>
+  <p class="meta">E2E fixture · 用于验证扩展是否真正注入并完成双语翻译</p>
+  <h1>The Quiet Economics of Documentation</h1>
+  <p>Good documentation is an economic asset that compounds over time. Every paragraph a team writes saves a future colleague a support ticket, a meeting, or an hour of reverse engineering.</p>
+  <p>Most teams underestimate this compounding effect. They treat documentation as a tax paid after shipping, rather than as part of the product itself.</p>
+  <h2>Why translation matters</h2>
+  <p>When a project is written in one language, its users are limited by that language. Translation is not decoration; it is the difference between a tool that a billion people can read and one that only a few million can.</p>
+  <ul>
+    <li>Documentation reduces the cost of onboarding.</li>
+    <li>Translation extends the reach of documentation.</li>
+    <li>Consistency keeps both trustworthy.</li>
+  </ul>
+  <blockquote>Reading is the cheapest form of travel.</blockquote>
+  <p>Consider the token budget of a large language model. A sentence with forty words might cost fifty tokens, while the same idea in Chinese could cost thirty. Efficiency is not only about money.</p>
+  <pre><code>const answer = await translate("Hello, world");</code></pre>
+  <p>Numbers like 2026 and URLs such as https://example.com should survive translation untouched.</p>
+    <section class="dark-panel" style="background:#15140f;color:#f5f5f4;padding:24px 26px;border-radius:12px;margin:28px 0;">
+    <h2 style="color:#f5f5f4;margin-top:0;">Contrast check section</h2>
+    <p>This paragraph sits on a dark host background. The translation must switch to light ink so that readers can still see it without squinting.</p>
+    <p>Another block of text with enough words to be queued for translation by the engine.</p>
+  </section>
+  <footer><p>Thanks for reading this test page.</p></footer>
+</body>
+</html>
